@@ -1,4 +1,4 @@
-name: Build APK
+name: Build Android APK
 
 on:
   push:
@@ -7,11 +7,27 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: |
+          sdkmanager "platform-tools" \
+                     "platforms;android-34" \
+                     "build-tools;34.0.0"
+          yes | sdkmanager --licenses || true
 
       - name: Setup Godot
         uses: chickensoft-games/setup-godot@v2
@@ -20,13 +36,33 @@ jobs:
           use-dotnet: false
           include-templates: true
 
+      - name: Configure Godot Android
+        run: |
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.tres" <<'SETTINGS'
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          SETTING
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "JAVA_HOME=$JAVA_HOME"
+          ls "$ANDROID_HOME/platforms"
+
+      - name: Check project
+        run: |
+          godot --headless --path game-client --editor --quit
+
       - name: Export APK
         run: |
-          mkdir -p builds
-          godot --headless --path game-client --export-debug "Android" builds/game.apk
+          mkdir -p game-client/builds
+          godot --headless \
+            --path game-client \
+            --export-debug "Android" \
+            builds/game.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: game-apk
-          path: builds/game.apk
+          name: Yggg-Android
+          path: game-client/builds/game.apk
+          if-no-files-found: error
