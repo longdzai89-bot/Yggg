@@ -1,0 +1,31 @@
+name: Build Android APK
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Godot Android APK
+        uses: barichello/godot-ci@v4.5.0
+        with:
+          version: '4.5.0'
+          export: Android
+          project_path: game-client
+      - name: Locate APK
+        run: find game-client -type f -name '*.apk' -print
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PrimitiveRealm-Android
+          path: game-client/**/*.apk
+      - name: Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Primitive Realm build ${{ github.run_number }}
+          files: game-client/**/*.apk
+          generate_release_notes: true

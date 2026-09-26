@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/game-server-tool/server-tool/run.py", line 2, in <module>
+    from app import app, sock, PORT, GAME_PORT
+  File "/data/data/com.termux/files/home/game-server-tool/server-tool/app.py", line 33, in <module>
+    init_db()
+    ~~~~~~~^^
+  File "/data/data/com.termux/files/home/game-server-tool/server-tool/app.py", line 31, in init_db
+    if not row: c.execute('INSERT INTO players(username,password_hash,gm) VALUES(?,?,1)',(ADMIN_USER,generate_password_hash(ADMIN_PASS))); c.commit()
+                ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.IntegrityError: UNIQUE constraint failed: players.username
