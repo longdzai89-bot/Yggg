@@ -7,33 +7,67 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Android SDK
+      - name: Find Android SDK
+        shell: bash
         run: |
-          export ANDROID_HOME=/usr/local/lib/android/sdk
-          export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
-          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
-          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
-          echo "$ANDROID_HOME/cmdline-tools/16.0/bin" >> "$GITHUB_PATH"
+          set -e
+
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+
+          if [ -z "$SDK" ]; then
+            for d in \
+              "$RUNNER_TOOL_CACHE/android-sdk" \
+              "/usr/local/lib/android/sdk" \
+              "$HOME/Android/Sdk"
+            do
+              if [ -d "$d" ]; then
+                SDK="$d"
+                break
+              fi
+            done
+          fi
+
+          if [ -z "$SDK" ] || [ ! -d "$SDK" ]; then
+            echo "Android SDK not found"
+            exit 1
+          fi
+
+          SDKMANAGER="$(find "$SDK" -type f -name sdkmanager 2>/dev/null | head -n 1)"
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "sdkmanager not found"
+            find "$SDK" -maxdepth 6 -type f 2>/dev/null | grep sdkmanager || true
+            exit 1
+          fi
+
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
+
+          echo "SDK: $SDK"
+          echo "sdkmanager: $SDKMANAGER"
 
       - name: Install Android packages
+        shell: bash
         run: |
-          SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/16.0/bin/sdkmanager"
-          chmod +x "$SDKMANAGER"
+          set -e
           yes | "$SDKMANAGER" --licenses || true
-          "$SDKMANAGER" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          "$SDKMANAGER" \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0"
 
       - name: Setup Godot
         uses: chickensoft-games/setup-godot@v2
@@ -42,25 +76,17 @@ jobs:
           use-dotnet: false
           include-templates: true
 
-      - name: Configure Godot Android
+      - name: Validate project
         run: |
-          mkdir -p "$HOME/.config/godot"
-          cat > "$HOME/.config/godot/editor_settings-4.tres" <<'SETTINGS'
-          [gd_resource type="EditorSettings" format=3]
-
-          [resource]
-          SETTINGS
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "JAVA_HOME=$JAVA_HOME"
-          ls "$ANDROID_HOME/platforms"
-
-      - name: Check project
-        run: |
-          godot --headless --path game-client --editor --quit
+          godot --headless \
+            --path game-client \
+            --editor \
+            --quit
 
       - name: Export APK
         run: |
           mkdir -p game-client/builds
+
           godot --headless \
             --path game-client \
             --export-debug "Android" \
