@@ -43,7 +43,7 @@ jobs:
           [gd_resource type="EditorSettings" format=3]
 
           [resource]
-          SETTING
+          SETTINGS
           echo "ANDROID_HOME=$ANDROID_HOME"
           echo "JAVA_HOME=$JAVA_HOME"
           ls "$ANDROID_HOME/platforms"
